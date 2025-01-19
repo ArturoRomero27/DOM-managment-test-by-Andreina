@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .input-section,
+        .tournament-section {
+            margin-bottom: 20px;
+        }
+
+        .group,
+        .matches-group {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .group h3,
+        .matches-group h3 {
+            margin: 0;
+        }
+
+        .score-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .score-container input {
+            width: 40px;
+            text-align: center;
+        }
+
+        .minus-symbol {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tournament Generator</h1>
+
+    <div class="input-section">
+        <label for="total-couples">Enter Total Number of Couples:</label>
+        <input type="number" id="total-couples" placeholder="8">
+        <button id="btn-set-couples" onclick="setTotalCouples()">Set Total Couples</button>
+        <br><br>
+        <label for="couple-name">Add Couple's Full Name:</label>
+        <input type="text" id="couple-name" placeholder="John Doe and Jane Doe">
+        <button onclick="addCouple()">Add Couple</button>
+    </div>
+
+    <div class="tournament-section">
+        <h2>Groups</h2>
+        <div id="groups-container">
+            <!-- Groups will appear here -->
+        </div>
+        <h2>Groups Matches</h2>
+        <div id="groups-matches-container">
+            <!-- Groups matches will appear here -->
+        </div>
+    </div>
+
+    <script>
+        const couples = [];
+        let groups = {};
+        let totalCouples = 0;
+        let amountOfGroups = 0;
+        let lastIteration = false;
+        let results = {};
+        let winners = [];
+        let losers = [];
+        let currentRound = 1;
+
+        function setTotalCouples() {
+            const totalCouplesInput = document.getElementById('total-couples');
+            totalCouples = parseInt(totalCouplesInput.value);
+
+            if (totalCouples > 0) {
+                calculateGroups();
+                totalCouplesInput.setAttribute("disabled", "disabled");
+                document.getElementById('btn-set-couples').setAttribute("disabled", "disabled");
+                renderGroups();
+            } else {
+                alert('Please enter a valid total number of couples.');
+            }
+        }
+
+        function calculateGroups() {
+            // Calculate number of groups needed based on total couples
+            amountOfGroups = Math.ceil(totalCouples / 4); // 4 pairs (8 people) per group
+            groups = {};
+
+            for (let i = 0; i < amountOfGroups; i++) {
+                const groupName = `Group ${String.fromCharCode(65 + i)}`;
+                groups[groupName] = [];
+            }
+        }
+
+        function addCouple() {
+            const coupleInput = document.getElementById('couple-name');
+            const coupleName = coupleInput.value.trim();
+
+            if (coupleName.length > 0) {
+                if (couples.length < totalCouples) {
+                    couples.push(coupleName);
+                    distributeCouple();
+                    coupleInput.value = '';
+                    coupleInput.focus();
+                    renderGroups();
+                    renderFirstMatches();
+                } else {
+                    alert('All couples have already been added.');
+                }
+            } else {
+                alert('Please enter a valid couple name.');
+            }
+        }
+
+        function distributeCouple() {
+            // Reset groups
+            for (const groupName in groups) {
+                groups[groupName] = [];
+            }
+
+            // Distribute couples sequentially, ensuring at least 4 couples per group
+            let currentGroupIndex = 0;
+
+            for (let i = 0; i < couples.length; i += 2) {
+                const couple1 = couples[i];
+                const couple2 = couples[i + 1] || null; // Handle odd number of couples
+                const groupName = `Group ${String.fromCharCode(65 + currentGroupIndex)}`;
+
+                if (couple1) groups[groupName].push(couple1);
+                if (couple2) groups[groupName].push(couple2);
+
+                // Switch to next group
+                if (currentGroupIndex === Object.keys(groups).length - 1) {
+                    if (Object.values(groups).every(group => group.length >= 4)) {
+                        lastIteration = true;
+                    } else {
+                        currentGroupIndex = 0;
+                    }
+                } else {
+                    if (groups[groupName].length % 2 === 0 && !lastIteration) {
+                        currentGroupIndex++;
+                    }
+                }
+            }
+        }
+
+        function renderGroups() {
+            const groupsContainer = document.getElementById('groups-container');
+            groupsContainer.innerHTML = '';
+
+            for (const groupName in groups) {
+                const groupDiv = document.createElement('div');
+                groupDiv.classList.add('group');
+
+                const groupTitle = document.createElement('h3');
+                groupTitle.textContent = groupName;
+                groupDiv.appendChild(groupTitle);
+
+                const groupList = document.createElement('ul');
+                groups[groupName].forEach(couple => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = couple;
+                    groupList.appendChild(listItem);
+                });
+                groupDiv.appendChild(groupList);
+
+                groupsContainer.appendChild(groupDiv);
+            }
+        }
+
+        function renderFirstMatches() {
+            const matchesContainer = document.getElementById('groups-matches-container');
+            matchesContainer.innerHTML = '';
+            let matchCounter = 1;
+            results[currentRound] = []
+
+            for (const groupName in groups) {
+                const group = groups[groupName];
+                if (group.length < 2) continue;
+
+                const groupMatchesDiv = document.createElement('div');
+                groupMatchesDiv.classList.add('matches-group');
+
+                const groupTitle = document.createElement('h3');
+                groupTitle.textContent = `Matches for ${groupName}`;
+                groupMatchesDiv.appendChild(groupTitle);
+
+                const matchesList = document.createElement('ul');
+                for (let i = 0; i < group.length; i += 2) {
+                    if (group[i + 1]) {
+                        const matchItem = document.createElement('li');
+                        matchItem.classList.add('match-item');
+
+                        // Group vs Group label
+                        const matchLabel = document.createElement('span');
+                        matchLabel.textContent = `${group[i]} VS ${group[i + 1]}`;
+                        matchItem.appendChild(matchLabel);
+
+                        // Create a div to hold the input fields and the "-" symbol
+                        const scoreDiv = document.createElement('div');
+                        scoreDiv.classList.add('score-container');
+
+                        // Create the first input for player 1's score
+                        const input1 = document.createElement('input');
+                        input1.type = 'number';
+                        input1.min = 1;
+                        input1.max = 6;
+                        input1.placeholder = '1';
+                        input1.id = `match-${matchCounter}-score1`;
+
+                        // Create the "-" symbol (non-editable)
+                        const minusSymbol = document.createElement('span');
+                        minusSymbol.textContent = ' - ';
+                        minusSymbol.classList.add('minus-symbol');
+
+                        // Create the second input for player 2's score
+                        const input2 = document.createElement('input');
+                        input2.type = 'number';
+                        input2.min = 1;
+                        input2.max = 6;
+                        input2.placeholder = '1';
+                        input2.id = `match-${matchCounter}-score2`;
+
+                        // Create the "Enter Result" button
+                        const enterResultButton = document.createElement('button');
+                        enterResultButton.textContent = 'Enter Result';
+                        enterResultButton.classList.add('enter-result-btn');
+
+                        // Add the input fields, "-" symbol, and button to the scoreDiv
+                        scoreDiv.appendChild(input1);
+                        scoreDiv.appendChild(minusSymbol);
+                        scoreDiv.appendChild(input2);
+                        scoreDiv.appendChild(enterResultButton);
+
+                        // Add the scoreDiv to the matchItem
+                        matchItem.appendChild(scoreDiv);
+
+                        // Create a container for showing the result (winner and loser)
+                        const resultContainer = document.createElement('div');
+                        resultContainer.classList.add('result-container');
+                        matchItem.appendChild(resultContainer);
+
+                        // Event listener for "Enter Result" button
+                        enterResultButton.addEventListener("click", () => getWinnersAndLosers(input1, input2, groupName, i, resultContainer, groups))
+
+                        console.log(matchCounter);
+
+                        matchCounter++; // Increment global counter for next ID
+                        matchesList.appendChild(matchItem);
+
+                        console.log(groups);
+                        
+                    }
+                }
+
+                groupMatchesDiv.appendChild(matchesList);
+                matchesContainer.appendChild(groupMatchesDiv);
+            }
+        }
+
+        function getWinnersAndLosers(input1, input2, groupName, matchNumber, resultContainer, inputGroups) {
+            console.log(inputGroups);
+            console.log(groupName);
+            const group = inputGroups[groupName];
+            let score1 = parseInt(input1.value);
+            let score2 = parseInt(input2.value);
+
+            if (score1 >= 1 && score1 <= 6 && score2 >= 1 && score2 <= 6) {
+                let winner = null;
+                let loser = null;
+
+                // Determine winner and loser based on scores
+                if (score1 === 6 && score2 < 6) {
+                    winner = group[matchNumber];
+                    loser = group[matchNumber + 1];
+                } else if (score2 === 6 && score1 < 6) {
+                    winner = group[matchNumber + 1];
+                    loser = group[matchNumber];
+                } else {
+                    alert("please enter a valid winner score (score 6)")
+                    return; // Ignore invalid results (both should not be 6)
+                }
+
+                // Display winner and loser below the match
+                resultContainer.innerHTML = `<strong>Winner: ${winner}</strong><br><strong>Loser: ${loser}</strong>`;
+
+                // Store the result
+                results[currentRound].push({
+                    winner: winner,
+                    loser: loser,
+                    groupName: groupName
+                });
+
+                // Track winners and losers
+                winners.push(winner);
+                losers.push(loser);
+
+                // Reset input fields after result
+                input1.value = '';
+                input2.value = '';
+
+                // Check if all results are entered
+                console.log(results[currentRound].length)
+                console.log(totalCouples / 2);
+
+                if (results[1].length == totalCouples / 2 && currentRound == 1) { //exception for first round sorry
+                    currentRound++
+                    renderSecondRoundMatches();
+                }
+            } else {
+                alert("Please enter valid scores between 1 and 6.");
+            }
+        };
+
+        function renderSecondRoundMatches() {
+            let matchCounter = 1;
+
+            for (const groupName in groups) {
+                // Locate the correct "Matches for Group X" section
+                const groupMatchesDiv = Array.from(document.querySelectorAll('#groups-matches-container .matches-group'))
+                    .find(div => div.querySelector('h3') && div.querySelector('h3').textContent === `Matches for ${groupName}`);
+
+                if (!groupMatchesDiv) continue;
+
+                const secondRoundDiv = document.createElement('div');
+                secondRoundDiv.classList.add('matches-group');
+                secondRoundDiv.innerHTML = "<h3>Second Round Matches</h3>";
+
+                const secondRoundList = document.createElement('ul');
+
+                // Winners vs winners
+                const winnersForGroup = results[currentRound - 1]
+                    .filter(result => result.groupName === groupName)
+                    .map(result => result.winner);
+
+                for (let i = 0; i < winnersForGroup.length; i += 2) {
+                    if (winnersForGroup[i + 1]) {
+                        const matchItem = document.createElement('li');
+                        matchItem.classList.add('match-item');
+                        const matchLabel = document.createElement('span');
+                        matchLabel.textContent = `${winnersForGroup[i]} VS ${winnersForGroup[i + 1]}`;
+                        matchItem.appendChild(matchLabel);
+
+                        // Create score inputs for the match
+                        const scoreDiv = document.createElement('div');
+                        scoreDiv.classList.add('score-container');
+
+                        // Create a container for showing the result (winner and loser)
+                        const resultContainer = document.createElement('div');
+                        resultContainer.classList.add('result-container');
+                        matchItem.appendChild(resultContainer);
+
+                        const input1 = document.createElement('input');
+                        input1.type = 'number';
+                        input1.min = 1;
+                        input1.max = 6;
+                        input1.placeholder = '1';
+
+                        const minusSymbol = document.createElement('span');
+                        minusSymbol.textContent = ' - ';
+
+                        const input2 = document.createElement('input');
+                        input2.type = 'number';
+                        input2.min = 1;
+                        input2.max = 6;
+                        input2.placeholder = '1';
+
+                        const enterResultButton = document.createElement('button');
+                        enterResultButton.textContent = 'Enter Result';
+                        enterResultButton.addEventListener("click", () => getWinnersAndLosers(input1, input2, groupName, i, resultContainer, winnersForGroup))
+
+                        // Append score inputs and button
+                        scoreDiv.appendChild(input1);
+                        scoreDiv.appendChild(minusSymbol);
+                        scoreDiv.appendChild(input2);
+                        scoreDiv.appendChild(enterResultButton);
+                        matchItem.appendChild(scoreDiv);
+
+                        secondRoundList.appendChild(matchItem);
+                        matchCounter++
+                    }
+                }
+
+                // Losers vs losers
+                const losersForGroup = results[currentRound - 1]
+                    .filter(result => result.groupName === groupName)
+                    .map(result => result.loser);
+
+                for (let i = 0; i < losersForGroup.length; i += 2) {
+                    if (losersForGroup[i + 1]) {
+                        const matchItem = document.createElement('li');
+                        matchItem.classList.add('match-item');
+                        const matchLabel = document.createElement('span');
+                        matchLabel.textContent = `${losersForGroup[i]} VS ${losersForGroup[i + 1]}`;
+                        matchItem.appendChild(matchLabel);
+
+                        // Create score inputs for the match
+                        const scoreDiv = document.createElement('div');
+                        scoreDiv.classList.add('score-container');
+
+                        // Create a container for showing the result (winner and loser)
+                        const resultContainer = document.createElement('div');
+                        resultContainer.classList.add('result-container');
+                        matchItem.appendChild(resultContainer);
+
+                        const input1 = document.createElement('input');
+                        input1.type = 'number';
+                        input1.min = 1;
+                        input1.max = 6;
+                        input1.placeholder = '1';
+
+                        const minusSymbol = document.createElement('span');
+                        minusSymbol.textContent = ' - ';
+
+                        const input2 = document.createElement('input');
+                        input2.type = 'number';
+                        input2.min = 1;
+                        input2.max = 6;
+                        input2.placeholder = '1';
+
+                        const enterResultButton = document.createElement('button');
+                        enterResultButton.textContent = 'Enter Result';
+                        enterResultButton.addEventListener("click", () => getWinnersAndLosers(input1, input2, groupName, i, resultContainer, losersForGroup))
+
+
+                        // Append score inputs and button
+                        scoreDiv.appendChild(input1);
+                        scoreDiv.appendChild(minusSymbol);
+                        scoreDiv.appendChild(input2);
+                        scoreDiv.appendChild(enterResultButton);
+                        matchItem.appendChild(scoreDiv);
+
+                        secondRoundList.appendChild(matchItem);
+                        matchCounter++
+                    }
+                }
+
+                secondRoundDiv.appendChild(secondRoundList);
+                groupMatchesDiv.appendChild(secondRoundDiv);
+            }
+        }
+
+        
+
+    </script>
+</body>
+
+</html>
